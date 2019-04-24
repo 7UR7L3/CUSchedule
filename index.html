@@ -44,25 +44,49 @@ var urlCourses = urlSearchParams.get( "classes" );
 var urlTerm = urlSearchParams.get( "term" );
 var srcdb = 2191; // TODO DO SOMETHING TO GET THIS VIA urlTerm !
 
-console.log( urlCourses )
+// console.log( urlCourses )
 
-var courseInfo
-
+var courseSections = {};
 for( var course of urlCourses.split( "," ) )
 {
 	var codesection = course.split( "-" );
+	if( !( codesection[0] in courseSections ) ) courseSections[ codesection[0] ] = [];
+	courseSections[ codesection[0] ].push( codesection[1] );
+}
 
-	httpPostAsync( "https://cors-anywhere.herokuapp.com/https://classes.colorado.edu/api/?page=fose&route=search", function( correctSection, data )
+var dbSearchResults = {};
+
+if( d=sessionStorage.getItem( "dbSearch" + srcdb ) )
+{
+	dbSearchResults = JSON.parse( d );
+	console.log( "(loaded dbSearchResults from sessionStorage)" );
+
+	hasDbSearchResults();
+}
+else
+	httpPostAsync( "https://cors-anywhere.herokuapp.com/https://classes.colorado.edu/api/?page=fose&route=search", function( data )
 	{
 		data = JSON.parse( data );
-		console.log( data )
-		for( var res of data.results )
-			if( res.no == correctSection )
-				document.body.innerHTML += "\n\n" + JSON.stringify( res, null, 2 );
-			else
-				console.log( `${res.no} wasn't ${correctSection}` )
-	}.bind( null, codesection[1] ),
-	`{"other":{"srcdb":"2191"},"criteria":[{"field":"alias","value":"${ codesection[0] }"}]}` );
+		dbSearchResults = data;
+		sessionStorage.setItem( "dbSearch" + srcdb, JSON.stringify( data ) );
+
+		hasDbSearchResults();
+	},
+	`{"other":{"srcdb":"${srcdb}"},"criteria":[]}` ); // collect entire db search results in one query, maybe faster even though bigger payload. also allows to add courses after initial load
+
+
+
+function hasDbSearchResults()
+{
+	console.log( "check sessionStorage for the course database search results" );
+	console.log( "dbSearchResults", dbSearchResults );
+
+	for( var res of dbSearchResults.results )
+	{
+		var codeOn = res.code.replace( " ", "" ).toLowerCase();
+		if( codeOn in courseSections && courseSections[ codeOn ].includes( res.no ) )
+			document.body.innerHTML += "\n\n" + JSON.stringify( res, null, 2 );
+	}
 }
 
 </script>
