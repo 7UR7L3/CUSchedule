@@ -1,0 +1,68 @@
+<html>
+
+<head>
+<title>Schedule.</title>
+
+<style>
+
+html
+{
+	white-space: pre;
+}
+
+</style>
+
+<body>
+
+<script>
+
+function httpPostAsync(theUrl, callback, postContent) // thanks https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/send#Example_POST
+{
+	var xmlHttp = new XMLHttpRequest();
+	xmlHttp.onreadystatechange = function() { 
+		if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+			callback(xmlHttp.responseText);
+	}
+	xmlHttp.open("POST", theUrl, true); // true for asynchronous 
+	xmlHttp.send( postContent );
+}
+function httpGetAsync(theUrl, callback) // thanks https://stackoverflow.com/a/4033310
+{
+	var xmlHttp = new XMLHttpRequest();
+	xmlHttp.onreadystatechange = function() { 
+		if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+			callback(xmlHttp.responseText);
+	}
+	xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+	xmlHttp.send(null);
+}
+
+
+
+var urlSearchParams = ( new URL( document.location ) ).searchParams;
+var urlCourses = urlSearchParams.get( "classes" );
+var urlTerm = urlSearchParams.get( "term" );
+var srcdb = 2191; // TODO DO SOMETHING TO GET THIS VIA urlTerm !
+
+console.log( urlCourses )
+
+var courseInfo
+
+for( var course of urlCourses.split( "," ) )
+{
+	var codesection = course.split( "-" );
+
+	httpPostAsync( "https://cors-anywhere.herokuapp.com/https://classes.colorado.edu/api/?page=fose&route=search", function( correctSection, data )
+	{
+		data = JSON.parse( data );
+		console.log( data )
+		for( var res of data.results )
+			if( res.no == correctSection )
+				document.body.innerHTML += "\n\n" + JSON.stringify( res, null, 2 );
+			else
+				console.log( `${res.no} wasn't ${correctSection}` )
+	}.bind( null, codesection[1] ),
+	`{"other":{"srcdb":"2191"},"criteria":[{"field":"alias","value":"${ codesection[0] }"}]}` );
+}
+
+</script>
