@@ -1,0 +1,74 @@
+<html>
+
+<head>
+
+<style>
+
+body
+{
+	white-space: pre;
+}
+
+</style>
+
+<body>
+
+Paste the results from visiting <a href="https://buffportal.colorado.edu/usews/api/v1/schedule/v2/term/2191/from/2019-04-24/days/7">https://buffportal.colorado.edu/usews/api/v1/schedule/v2/term/2191/from/2019-04-24/days/7</a> and this site will further query classes.colorado.edu to collect all information for a given course. This information will be presented below:
+
+<script>
+
+var courseDetailsComplete = {};
+
+document.body.onpaste = function( e ) // thanks https://stackoverflow.com/a/6804718
+{
+	e.stopPropagation();
+	e.preventDefault();
+
+	var pasteText = ( e.clipboardData || window.clipboardData ).getData( "text" );
+
+	withBuffportalData( JSON.parse( pasteText ) );
+	// console.log( JSON.parse( pasteText ) )
+}
+
+function withBuffportalData( jsonData )
+{
+	for( var date of jsonData.data )
+		for( course of [ ...date.courses, ...date.online ] )
+		{
+			var courseName = course.courseSubject.toLowerCase() + course.courseNumber + "-" + course.courseSection;
+			if( !( courseName in courseDetailsComplete ) ) courseDetailsComplete[ courseName ] = {};
+			courseDetailsComplete[ courseName ] = { ...courseDetailsComplete[ course ], ...course };
+		}
+
+	// console.log( courseDetailsComplete );
+	collectClassescoloradoData();
+}
+
+async function collectClassescoloradoData()
+{
+	for( course of Object.keys( courseDetailsComplete ) )
+	{
+		var classesResponse = JSON.parse( await ( await fetch( "https://cors-anywhere.herokuapp.com/https://classes.colorado.edu/api/?page=fose&route=details", {"body":`{"group":"code:${courseDetailsComplete[course].courseSubject + " " + courseDetailsComplete[course].courseNumber}","key":"","srcdb":"2191","matched":""}`,"method":"POST"} ) ).text() );
+
+		var fullClassesResponse = {};
+		for( var section of classesResponse.allInGroup )
+			if( section.no == courseDetailsComplete[ course ].courseSection )
+			{
+				fullClassesResponse = JSON.parse( await ( await fetch( "https://cors-anywhere.herokuapp.com/https://classes.colorado.edu/api/?page=fose&route=details", {"body":`{"group":"crn:${section.crn}","key":"crn:${section.crn}","srcdb":"2191","matched":""}`,"method":"POST"} ) ).text() );
+				break;
+			}
+
+		// console.log( fullClassesResponse );
+
+		courseDetailsComplete[ course ] = { ...courseDetailsComplete[ course ], ...fullClassesResponse };
+	}
+
+	presentData();
+}
+
+function presentData()
+{
+	document.body.innerText += JSON.stringify( courseDetailsComplete, null, 4 );
+}
+
+</script>
